@@ -1,10 +1,12 @@
-from enum import Enum
 import time
+from enum import Enum
+
 
 class SCPICommand(Enum):
     pass
 
-class SCPIInstrument():
+
+class SCPIInstrument:
     class CommonCommands(SCPICommand):
         ID = "*IDN"
         RESET = "*RST"
@@ -31,22 +33,26 @@ class SCPIInstrument():
         while not self.is_operation_complete():
             time.sleep(self.POLLING_SLEEP_TIME)
 
-    def _read(self) -> str:
-        response = b''
-        while response[-1:] != b'\n':
-            if type(self._connection).__name__ == 'socket':
-                response = self._connection.recv(64) #TODO Check amount of bytes
-            if type(self._connection).__name__ == 'USBInstrument':
-                response = self._connection.read_raw(64) #TODO Check amount of bytes
-        return response.decode('ascii').strip()
+    def _read(self, size=64) -> bytes:
+        response = b""
+        while response[-1:] != b"\n":
+            if type(self._connection).__name__ == "socket":
+                response = self._connection.recv(size)
+            if type(self._connection).__name__ == "USBInstrument":
+                response = self._connection.read_raw(size)
+        return response
 
     def _write(self, command: SCPICommand, params: str = "", query: bool = False):
         cmd = command.value + self.QUERY_SUFFIX if query else command.value
-        if type(self._connection).__name__ == 'socket':
-            self._connection.sendall((cmd + " " + params + self.COMMAND_SUFFIX).encode())
-        if type(self._connection).__name__ == 'USBInstrument':
+        if type(self._connection).__name__ == "socket":
+            self._connection.sendall(
+                (cmd + " " + params + self.COMMAND_SUFFIX).encode()
+            )
+        if type(self._connection).__name__ == "USBInstrument":
             self._connection.write(cmd + params)
 
-    def _transmit(self, command: SCPICommand, params: str = "", query: bool = True) -> str:
+    def _transmit(
+        self, command: SCPICommand, params: str = "", query: bool = True
+    ) -> str:
         self._write(command, params, query)
-        return self._read()
+        return self._read().decode("ascii").strip()

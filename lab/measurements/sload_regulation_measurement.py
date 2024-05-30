@@ -10,7 +10,7 @@ from lab.instruments.rohde_und_schwarz_hmc8012 import (
 from lab.instruments.siglent_sds_1104_x import Siglent1104X_107 as Oscilloscope
 from lab.instruments.siglent_spd_1305_x import Siglent1305X_249 as PowerSupply
 
-TIMEOUT = 5.0
+TIMEOUT = 30.0
 
 
 def run():
@@ -28,6 +28,7 @@ def run():
         print(dmm.get_id_string())
         print(scope.get_id_string())
         print(psu.get_id_string())
+        screenshot = scope.get_screen_dump()
         print(Quantity(dmm.fetch(), "V").fixed(strip_zeros=False))
         print(Quantity(dmm.read(), "V").fixed(strip_zeros=False))
         print(dmm.get_trigger_mode())

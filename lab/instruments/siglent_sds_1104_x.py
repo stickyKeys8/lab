@@ -1,3 +1,6 @@
+import matplotlib.pyplot as plt
+from quantiphy import Quantity
+
 from lab.instruments.scpi_instrument import SCPICommand, SCPIInstrument
 
 
@@ -19,6 +22,12 @@ class Siglent1104X(SCPIInstrument):
         SINX_INTERPOLATION = "SXSA"  # parameter ON and OFF
         X_Y_DISPLAY = "XYDS"  # parameter ON and OFF
         AUTO_SETUP = "ASET"
+        SCREEN_DUMP = "SCDP"
+        WAVEFORM = "C2:WF"
+        VDIV = "MTVD"
+        OFFSET = "MTVP"
+        TDIV = "TDIV"
+        # sara = sds.query("sara?")
 
     class ChannelCommands(SCPICommand):
         ATTENUATION = "ATTN"  # C1:ATTN 100 sets the attenuation to 100:1
@@ -54,6 +63,94 @@ class Siglent1104X(SCPIInstrument):
 
     def get_x_y_display(self) -> bool:
         return "ON" in self._transmit(self.AcquisitionCommands.X_Y_DISPLAY)
+
+    def get_vdiv(self) -> float:
+        response = (
+            str(self._transmit(self.AcquisitionCommands.VDIV))
+            .split(" ")[1]
+            .split("V")[0]
+        )
+        return float(response)
+
+    def get_offset(self) -> float:
+        response = float(
+            str(self._transmit(self.AcquisitionCommands.OFFSET))
+            .split(" ")[1]
+            .split("V")[0]
+        )
+        return response
+
+    def get_tdiv(self) -> float:
+        response = float(
+            str(self._transmit(self.AcquisitionCommands.TDIV))
+            .split(" ")[1]
+            .split("S")[0]
+        )
+        return response
+
+    def get_sample_rate(self) -> float:
+        response = float(
+            str(self._transmit(self.AcquisitionCommands.SAMPLE_RATE))
+            .split(" ")[1]
+            .split("S")[0]
+        )
+        return response
+
+    def get_sample_points(self) -> float:
+        response = float(
+            str(
+                self._transmit(
+                    self.AcquisitionCommands.NUMBER_OF_ACQUIRED_SAMPLES, "C1"
+                )
+            )
+            .split(" ")[1]
+            .split("pts")[0]
+        )
+        return response
+
+    def get_screen_dump(self) -> bool:
+        times = []
+        volts = []
+        vdiv = self.get_vdiv()
+        offset = self.get_offset()
+        tdiv = self.get_tdiv()
+        sara = self.get_sample_rate()
+        num_samples = self.get_sample_points()
+
+        a = Quantity(vdiv, units="V")
+        b = Quantity(offset, units="V")
+        c = Quantity(tdiv, units="S")
+
+        print(f"vdiv: {a}")
+        print(f"offset: {b}")
+        print(f"tdiv: {c}")
+        print(f"sara: {sara}")
+        print(f"numsamples: {num_samples}")
+
+        self._write(self.AcquisitionCommands.WAVEFORM, params="dat2", query=True)
+        response = self._read(20000)
+        values = list(response)
+        values.pop()
+        values.pop()
+
+        # hdiv = 14
+        # vdiv = 8
+
+        insert = len(values) / num_samples
+        time_interval = 1 / sara / insert
+        start_time = -(tdiv * 14 / 2)
+
+        for value in values:
+            value = value - 256 if value > 127 else value
+            volts.append(value * (vdiv / 25) - offset)
+            start_time += time_interval
+            times.append(start_time)
+
+        plt.plot(times, volts)
+        plt.grid()
+        plt.show()
+        print("blah")
+        return response
 
 
 class Siglent1104X_107(Siglent1104X):

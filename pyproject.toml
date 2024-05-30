@@ -9,6 +9,7 @@ packages = [{ include = "lab/instruments" }, { include = "lab/measurements" }]
 [tool.poetry.dependencies]
 python = "^3.11"
 quantiphy = "^2.20"
+matplotlib = "^3.9.0"
 
 
 [build-system]
