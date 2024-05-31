@@ -38,7 +38,7 @@ class SCPIInstrument:
         while response[-1:] != b"\n":
             if type(self._connection).__name__ == "socket":
                 response = self._connection.recv(size)
-            if type(self._connection).__name__ == "USBInstrument":
+            if type(self._connection).__name__ in ["USBInstrument", "TCPIPInstrument"]:
                 response = self._connection.read_raw(size)
         return response
 
@@ -48,7 +48,7 @@ class SCPIInstrument:
             self._connection.sendall(
                 (cmd + " " + params + self.COMMAND_SUFFIX).encode()
             )
-        if type(self._connection).__name__ == "USBInstrument":
+        if type(self._connection).__name__ in ["USBInstrument", "TCPIPInstrument"]:
             self._connection.write(cmd + params)
 
     def _transmit(
