@@ -34,7 +34,7 @@ class SCPIInstrument:
             time.sleep(self.POLLING_SLEEP_TIME)
 
     def _read(self, size=64) -> bytes:
-        time.sleep(0.1)
+        time.sleep(0.2)
         response = b""
         while response[-1:] != b"\n":
             if type(self._connection).__name__ == "socket":
@@ -44,14 +44,15 @@ class SCPIInstrument:
         return response
 
     def _write(self, command: SCPICommand, params: str = "", query: bool = False):
-        time.sleep(0.1)
+        time.sleep(0.2)
         cmd = command.value + self.QUERY_SUFFIX if query else command.value
         if type(self._connection).__name__ == "socket":
             self._connection.sendall(
                 (cmd + " " + params + self.COMMAND_SUFFIX).encode()
             )
         if type(self._connection).__name__ in ["USBInstrument", "TCPIPInstrument"]:
-            self._connection.write(cmd + params)
+            final_cmd = str(cmd + " " + params).strip()
+            self._connection.write(final_cmd)
 
     def _transmit(
         self, command: SCPICommand, params: str = "", query: bool = True
