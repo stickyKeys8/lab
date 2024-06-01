@@ -3,15 +3,14 @@ import datetime
 import logging
 import pathlib
 import socket
+import time
 
 import pandas
 import pyvisa
 
-from lab.instruments.rigol_dl_3021_a import RigolDL3021A_247 as Load
-from lab.instruments.rohde_und_schwarz_hmc8012 import \
-    RohdeUndSchwarzHMC8012_146 as Multimeter
 from lab.instruments.scpi_instrument import SCPIInstrument
-from lab.instruments.siglent_sds_1104_x import Siglent1104X_107 as Oscilloscope
+from lab.instruments.rigol_dl_3021_a import RigolDL3021A_247 as Load
+from lab.instruments.rohde_und_schwarz_hmc8012 import RohdeUndSchwarzHMC8012_146 as Multimeter
 from lab.instruments.siglent_spd_1305_x import Siglent1305X_249 as PowerSupply
 
 # pylint: disable=line-too-long
@@ -22,6 +21,7 @@ from lab.instruments.siglent_spd_1305_x import Siglent1305X_249 as PowerSupply
 TIMEOUT = 5.0
 RESULTS_PATH = pathlib.Path(__file__).parent
 VERSION = "1.0.0"
+PSU_SETTLING_TIME_S = 1.5
 
 def run() -> pandas.DataFrame:
     """Run a load regulation measurement."""
@@ -34,14 +34,11 @@ def run() -> pandas.DataFrame:
     dmm_connection = create_socket_and_connect(Multimeter.IP_ADDRESS, Multimeter.PORT)
     dmm = Multimeter(dmm_connection)
 
-    scope_connection = create_socket_and_connect(Oscilloscope.IP_ADDRESS, Oscilloscope.PORT)
-    scope = Oscilloscope(scope_connection)
-
     psu_connection = create_socket_and_connect(PowerSupply.IP_ADDRESS, PowerSupply.PORT)
     psu = PowerSupply(psu_connection)
 
-    connections :list[socket.socket | pyvisa.resources.TCPIPInstrument] = [load_connection, dmm_connection, scope_connection, psu_connection]
-    instruments : list[SCPIInstrument] = [load, dmm, scope, psu]
+    connections :list[socket.socket | pyvisa.resources.TCPIPInstrument] = [load_connection, dmm_connection, psu_connection]
+    instruments : list[SCPIInstrument] = [load, dmm, psu]
 
     time_stamp = datetime.datetime.now()
     meta_df = pandas.DataFrame(columns=["meta"])
@@ -57,15 +54,26 @@ def run() -> pandas.DataFrame:
         for value in meta_df["meta"]:
             logger.info(value)
 
+        psu.set_voltage(1.234)
+        psu.set_current(1.234)
+        psu.set_mode("4W")
+        psu.set_enable_wave_display(True)
+        psu.set_enable_output(True)
+
+        time.sleep(PSU_SETTLING_TIME_S)
+
+        log_psu_state(logger, psu)
+
+        
+
         load_currents = [x / 10.0 for x in range(0, 31, 1)]
         voltages = [x / 10.0 for x in range(0, 31, 1)]
-
         results_df['load_current'] = load_currents
         results_df['output_voltage'] = voltages
 
-        time_stamp_for_filename = time_stamp.strftime("%Y%m%d_%H%M%S")
+        time_stamp_for_filename = time_stamp.strftime("%Y%m%d_%H%M%S") # pylint: disable=unused-variable
         file_name = "load_regulation.csv"
-        
+
         results_df.to_csv(RESULTS_PATH / file_name, header=["load_current", "output_voltage"])
         meta_df.to_csv((RESULTS_PATH / file_name).with_suffix(".meta.csv"), header=["meta"])
 
@@ -74,6 +82,9 @@ def run() -> pandas.DataFrame:
         logger.exception(ex)
         raise Exception from ex
     finally:
+        psu.set_enable_output(False)
+        psu.set_enable_wave_display(False)
+        psu.set_mode("2W")
         for connection in connections:
             connection.close()
 
@@ -84,6 +95,15 @@ def create_socket_and_connect(ip_address: str, port: int):
     new_socket.connect((ip_address, port))
     return new_socket
 
+def log_psu_state(logger, psu):
+    logger.info("PSU output is: %s", 'on' if psu.get_output_enabled() else 'off')
+    logger.info("PSU wave display is: %s", 'on' if psu.get_wave_display_enabled() else 'off')
+    logger.info("PSU mode is: %s",'4W' if psu.get_4w_mode_enabled() else '2W')
+    logger.info("PSU set voltage: %f", psu.get_voltage())
+    logger.info("PSU measured voltage: %f", psu.measure_voltage())
+    logger.info("PSU set current: %f", psu.get_current())
+    logger.info("PSU measured current: %f", psu.measure_current())
+    logger.info("PSU measured power: %f", psu.measure_power())
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
