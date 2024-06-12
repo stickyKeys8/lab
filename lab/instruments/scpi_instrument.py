@@ -34,9 +34,11 @@ class SCPIInstrument:
             time.sleep(self.POLLING_SLEEP_TIME)
 
     def _read(self, size=64) -> bytes:
-        time.sleep(0.2)
         response = b""
         while response[-1:] != b"\n":
+            if type(self._connection).__name__ == "Telnet":
+                response = self._connection.read_very_eager()
+                break
             if type(self._connection).__name__ == "socket":
                 response = self._connection.recv(size)
             if type(self._connection).__name__ in ["USBInstrument", "TCPIPInstrument"]:
@@ -44,12 +46,13 @@ class SCPIInstrument:
         return response
 
     def _write(self, command: SCPICommand, params: str = "", query: bool = False):
-        time.sleep(0.2)
         cmd = command.value + self.QUERY_SUFFIX if query else command.value
+        if type(self._connection).__name__ == "Telnet":
+            final_cmd = (cmd + " " + params).strip() + self.COMMAND_SUFFIX
+            self._connection.write(final_cmd.encode())
         if type(self._connection).__name__ == "socket":
-            self._connection.sendall(
-                (cmd + " " + params + self.COMMAND_SUFFIX).encode()
-            )
+            final_cmd = cmd + " " + params + self.COMMAND_SUFFIX
+            self._connection.sendall(final_cmd.encode())
         if type(self._connection).__name__ in ["USBInstrument", "TCPIPInstrument"]:
             final_cmd = str(cmd + " " + params).strip()
             self._connection.write(final_cmd)

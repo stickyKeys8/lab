@@ -9,8 +9,6 @@ import pandas
 import pyvisa
 
 from lab.instruments.rigol_dl_3021_a import RigolDL3021A_247 as Load
-from lab.instruments.rohde_und_schwarz_hmc8012 import \
-    RohdeUndSchwarzHMC8012_146 as Multimeter
 from lab.instruments.scpi_instrument import SCPIInstrument
 from lab.instruments.siglent_spd_1305_x import Siglent1305X_249 as PowerSupply
 
@@ -33,14 +31,11 @@ def run() -> pandas.DataFrame:
     load_connection = resource_manager.open_resource(Load.TCPIP_INSTRUMENT_STRING)
     load = Load(load_connection)
 
-    dmm_connection = create_socket_and_connect(Multimeter.IP_ADDRESS, Multimeter.PORT)
-    dmm = Multimeter(dmm_connection)
-
     psu_connection = create_socket_and_connect(PowerSupply.IP_ADDRESS, PowerSupply.PORT)
     psu = PowerSupply(psu_connection)
 
-    connections :list[socket.socket | pyvisa.resources.TCPIPInstrument] = [load_connection, dmm_connection, psu_connection]
-    instruments : list[SCPIInstrument] = [load, dmm, psu]
+    connections :list[socket.socket | pyvisa.resources.TCPIPInstrument] = [load_connection, psu_connection]
+    instruments : list[SCPIInstrument] = [load, psu]
 
     time_stamp = datetime.datetime.now()
     meta_df = pandas.DataFrame(columns=["meta"])
@@ -48,7 +43,9 @@ def run() -> pandas.DataFrame:
     meta_df.loc["Timestamp"] = str(time_stamp)
     meta_df.loc["Instruments"] = " ".join([instrument.get_id_string() for instrument in instruments])
     meta_df.loc["Version"] = VERSION
-    meta_df.loc["DUT"] = "LM2596"
+    meta_df.loc["DUT"] = "LM2596_2 with lr diode and tdk680"
+    meta_df.loc["Input voltage"] = 23
+    meta_df.loc["Output votlage"] = 12
 
     result_header = ["psu_measured_voltages", "psu_measured_currents", "psu_measured_powers", "load_measured_voltages", "load_measured_currents", "load_measured_powers"]
     results_df = pandas.DataFrame(columns=result_header)
@@ -57,7 +54,7 @@ def run() -> pandas.DataFrame:
         for value in meta_df["meta"]:
             logger.info(value)
 
-        psu.set_voltage(6)
+        psu.set_voltage(23)
         psu.set_current(5)
         psu.set_mode("4W")
         psu.set_enable_output(True)

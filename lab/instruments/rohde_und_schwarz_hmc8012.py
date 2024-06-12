@@ -13,6 +13,7 @@ class RohdeUndSchwarzHMC8012(SCPIInstrument):
 
     class MeasurementCommands(SCPICommand):
         MEAUSRUE_VOLTAGE_DC = "MEAS:VOLT:DC"
+        MEASURE_TEMP = "MEAS:TEMP"
 
     def __init__(self, connection) -> None:
         super(RohdeUndSchwarzHMC8012, self).__init__(connection)
@@ -40,6 +41,16 @@ class RohdeUndSchwarzHMC8012(SCPIInstrument):
         """
         return float(
             self._transmit(self.MeasurementCommands.MEAUSRUE_VOLTAGE_DC, voltage_range)
+        )
+
+    def measure_temperature(self, enable_4w: bool = False, probe_type: str ="") -> float:
+        """
+        Probe types: PT100, PT500, PT1000
+
+        If the input signal is greater than can be measured on the selected range (manual ranging), the instrument returns 9.90000000E+37.
+        """
+        return float(
+            self._transmit(self.MeasurementCommands.MEASURE_TEMP, params=f"{'FRTD' if enable_4w else 'RTD'} {probe_type}")
         )
 
 

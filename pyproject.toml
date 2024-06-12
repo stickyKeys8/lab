@@ -19,6 +19,7 @@ nbformat = "^5.10.4"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.4"
+notebook = "^7.2.1"
 
 [build-system]
 requires = ["poetry-core"]
