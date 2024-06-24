@@ -43,7 +43,7 @@ def run() -> pandas.DataFrame:
     meta_df.loc["Timestamp"] = str(time_stamp)
     meta_df.loc["Instruments"] = " ".join([instrument.get_id_string() for instrument in instruments])
     meta_df.loc["Version"] = VERSION
-    meta_df.loc["DUT"] = "LM2596_2 with lr diode and tdk680"
+    meta_df.loc["DUT"] = "LM2596_2 with 5817 diode and 470uH none shielded inductor"
     meta_df.loc["Input voltage"] = 23
     meta_df.loc["Output votlage"] = 12
 
